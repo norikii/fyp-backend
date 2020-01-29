@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package proto;
+
+message Item {
+    string id = 1;
+    string item_name = 2;
+    string item_description = 3;
+    string item_img = 4;
+    float item_price = 5;
+}
+
+message CreateItemReq {
+   Item item = 1;
+}
+
+message CreateItemRes {
+    Item item = 1;
+}
+
+message ReadItemReq {
+    string id = 1;
+}
+
+message ReadItemRes {
+    Item item = 1;
+}
+
+message UpdateItemReq {
+    Item item = 1;
+}
+
+message UpdateItemRes {
+    Item item = 1;
+}
+
+message DeleteItemReq {
+    string id = 1;
+}
+
+message DeleteItemRes {
+    bool success = 1;
+}
+
+message ListItemReq {}
+
+message ListItemRes {
+    Item item = 1;
+}
+
+service ItemService {
+    rpc CreateItem(CreateItemReq) returns (CreateItemRes);
+    rpc ReadItem(ReadItemReq) returns (ReadItemRes);
+    rpc UpdateItem(UpdateItemReq) returns (UpdateItemRes);
+    rpc DeleteItem(DeleteItemReq) returns (DeleteItemRes);
+    rpc ListItems(ListItemReq) returns (stream ListItemRes);
+}

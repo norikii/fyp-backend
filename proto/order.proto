@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package proto;
+
+import "item.proto";
+
+message Order {
+    string id = 1;
+    int32 table_no = 2;
+    string user_id = 3;
+    repeated Item items = 4;
+    float total_price = 5;
+    bool is_payed = 6;
+    bool is_ready = 7;
+}
+
+message CreateOrderReq {
+    Order item = 1;
+}
+
+message CreateOrderRes {
+    Order item = 1;
+}
+
+message ReadOrderReq {
+    string id = 1;
+}
+
+message ReadOrderRes {
+    Order item = 1;
+}
+
+message UpdateOrderReq {
+    Order item = 1;
+}
+
+message UpdateOrderRes {
+    Order item = 1;
+}
+
+message DeleteOrderReq {
+    string id = 1;
+}
+
+message DeleteOrderRes {
+    bool success = 1;
+}
+
+message ListOrderReq {}
+
+message ListOrderRes {
+    Order item = 1;
+}
+
+service OrderService {
+    rpc CreateOrder(CreateOrderReq) returns (CreateOrderRes);
+    rpc ReadOrder(ReadOrderReq) returns (ReadOrderRes);
+    rpc UpdateOrder(UpdateOrderReq) returns (UpdateOrderRes);
+    rpc DeleteOrder(DeleteOrderReq) returns (DeleteOrderRes);
+    rpc ListOrders(ListOrderReq) returns (stream ListOrderRes);
+}
