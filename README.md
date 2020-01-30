@@ -5,4 +5,6 @@
  ####ITEM: item_id=int64, item_name=string, item_description=string, item_img=string, item_price=float32
  ####USER: user_id=int64, email=string, password=string, orders=[]Order
  
+ - protoc --proto_path=proto -I/--proto_path=proto --go_out=plugins=grpc:models user.proto order.proto item.proto
+ 
  
