@@ -8,6 +8,10 @@ message Item {
     string item_description = 3;
     string item_img = 4;
     float item_price = 5;
+    int64 estimate_prepare_time = 9;
+    int64 create_at = 6;
+    int64 updated_at = 7;
+    int64 deleted_at = 8;
 }
 
 message CreateItemReq {

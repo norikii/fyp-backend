@@ -10,8 +10,11 @@ message Order {
     string user_id = 3;
     repeated Item items = 4;
     float total_price = 5;
-    bool is_payed = 6;
-    bool is_ready = 7;
+    int64 payed_at = 6;
+    int64 is_ready_at = 7;
+    int64 create_at = 8;
+    int64 updated_at = 9;
+    int64 deleted_at = 10;
 }
 
 message CreateOrderReq {
