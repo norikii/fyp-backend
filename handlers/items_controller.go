@@ -3,24 +3,30 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/tatrasoft/fyp-backend/database"
 	"github.com/tatrasoft/fyp-backend/models"
 	"github.com/tatrasoft/fyp-backend/proto"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	dbname = "fyp_db"
-	tableName = "items"
+	collectionItems = "items"
 )
 
-type ItemsServerService struct {}
+type ItemsServerService struct{}
 
-var collection = database.SpecifyCollection(database.DBCli, dbname, tableName)
+var itemsColHelper database.CollectionHelper
+
+func SetColHelper(helper database.DBHelper) {
+	itemsColHelper = helper.Collection(collectionItems)
+}
 
 // CreateItem creates new item entry in the db
 func (iss *ItemsServerService) CreateItem(
@@ -28,27 +34,28 @@ func (iss *ItemsServerService) CreateItem(
 	req *proto.CreateItemReq) (*proto.CreateItemRes, error) {
 	// to access the struct with nil check
 	item := req.GetItem()
-	// converting ItemItem type to BSON
+	// converting Item type to BSON
 	data := models.Item{
-		ID:              primitive.ObjectID{},
-		ItemName:        item.GetItemName(),
-		ItemDescription: item.GetItemDescription(),
-		ItemImg:         item.GetItemImg(),
-		ItemPrice:       item.GetItemPrice(),
+		ID:                  primitive.ObjectID{},
+		ItemName:            item.GetItemName(),
+		ItemDescription:     item.GetItemDescription(),
+		ItemImg:             item.GetItemImg(),
+		ItemPrice:           item.GetItemPrice(),
+		EstimatePrepareTime: item.GetEstimatePrepareTime(),
+		CreatedAt:           time.Now().Unix(),
+		UpdatedAt:           time.Now().Unix(),
+		DeletedAt:           0,
 	}
 	// insert data into database, result contains newly generated Object ID for the new document
-	result, err := collection.InsertOne(database.MongoCtx, data)
+	result, err := itemsColHelper.InsertOne(ctx, &data)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}
-
-	// add the id to item, first cast the "generic type" go does not have real generics yet to an Object ID
-	oid := result.InsertedID.(primitive.ObjectID)
 	// convert object id to its string counterpart
-	item.Id = oid.Hex()
+	item.Id = result.(primitive.ObjectID).Hex()
 
 	return &proto.CreateItemRes{Item: item}, nil
 }
@@ -60,7 +67,7 @@ func (iss *ItemsServerService) ReadItem(ctx context.Context, req *proto.ReadItem
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, fmt.Sprintf("could not convert to objectID: %v", err))
 	}
-	result := collection.FindOne(database.MongoCtx, bson.M{"_id": oid})
+	result := itemsColHelper.FindOne(ctx, bson.M{"_id": oid})
 
 	// create empty Item object to write our decode result into
 	data := models.Item{}
@@ -75,6 +82,10 @@ func (iss *ItemsServerService) ReadItem(ctx context.Context, req *proto.ReadItem
 			ItemDescription:      data.ItemDescription,
 			ItemImg:              data.ItemImg,
 			ItemPrice:            data.ItemPrice,
+			EstimatePrepareTime:  data.EstimatePrepareTime,
+			CreateAt:				data.CreatedAt,
+			UpdatedAt: data.UpdatedAt,
+			DeletedAt: data.DeletedAt,
 			XXX_NoUnkeyedLiteral: struct{}{},
 			XXX_unrecognized:     nil,
 			XXX_sizecache:        0,
@@ -94,7 +105,7 @@ func (iss *ItemsServerService) DeleteItem(ctx context.Context, req *proto.Delete
 	}
 	// DeleteOne returns DeleteResult which is a struct containing the amount of deleted docs (in this case only 1 always)
 	// So we return a boolean instead
-	_, err = collection.DeleteOne(ctx, bson.M{"_id": oid})
+	_, err = itemsColHelper.DeleteOne(ctx, bson.M{"_id": oid})
 	// Check for errors
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, fmt.Sprintf("Could not find/delete item with id %s: %v", req.GetId(), err))
@@ -126,14 +137,17 @@ func (iss *ItemsServerService) UpdateItem(ctx context.Context, req *proto.Update
 		"item_description": item.GetItemDescription(),
 		"item_img":         item.GetItemImg(),
 		"item_price":       item.GetItemPrice(),
+		"estimate_prepare_time": item.GetEstimatePrepareTime(),
+		"create_at": item.GetCreateAt(),
+		"updated_at": item.GetUpdatedAt(),
+		"deleted_at": item.GetDeletedAt(),
 	}
 
 	// Convert the oid into an unordered bson document to search by id
 	filter := bson.M{"_id": oid}
 
 	// Result is the BSON encoded result
-	// To return the updated document instead of original we have to add options.
-	result := collection.FindOneAndUpdate(ctx, filter, bson.M{"$set": update}, options.FindOneAndUpdate().SetReturnDocument(1))
+	result := itemsColHelper.FindOneAndUpdate(ctx, filter, bson.M{"$set": update})
 
 	// Decode result and write it to 'decoded'
 	decoded := models.Item{}
@@ -152,6 +166,10 @@ func (iss *ItemsServerService) UpdateItem(ctx context.Context, req *proto.Update
 			ItemDescription:      decoded.ItemDescription,
 			ItemImg:              decoded.ItemImg,
 			ItemPrice:            decoded.ItemPrice,
+			EstimatePrepareTime: decoded.EstimatePrepareTime,
+			CreateAt: decoded.CreatedAt,
+			UpdatedAt: time.Now().Unix(),
+			DeletedAt: decoded.DeletedAt,
 			XXX_NoUnkeyedLiteral: struct{}{},
 			XXX_unrecognized:     nil,
 			XXX_sizecache:        0,
@@ -164,7 +182,7 @@ func (iss *ItemsServerService) ListItems(req *proto.ListItemReq, stream proto.It
 	// Initiate a Item type to write decoded data to
 	data := &models.Item{}
 	// collection.Find returns a cursor for our (empty) query
-	cursor, err := collection.Find(context.Background(), bson.M{})
+	cursor, err := itemsColHelper.List(context.Background(), bson.M{})
 	if err != nil {
 		return status.Errorf(codes.Internal, fmt.Sprintf("Unknown internal error: %v", err))
 	}
@@ -179,7 +197,7 @@ func (iss *ItemsServerService) ListItems(req *proto.ListItemReq, stream proto.It
 			return status.Errorf(codes.Unavailable, fmt.Sprintf("Could not decode data: %v", err))
 		}
 		// If no error is found send item over stream
-		stream.Send(&proto.ListItemRes{
+		err = stream.Send(&proto.ListItemRes{
 			Item: &proto.Item{
 				Id:                   data.ID.Hex(),
 				ItemName:             data.ItemName,
@@ -191,6 +209,9 @@ func (iss *ItemsServerService) ListItems(req *proto.ListItemReq, stream proto.It
 				XXX_sizecache:        0,
 			},
 		})
+		if err != nil {
+			return status.Errorf(codes.Internal, fmt.Sprintf("unable to send item over the stream: %v", err))
+		}
 	}
 	// Check if the cursor has any errors
 	if err := cursor.Err(); err != nil {
@@ -199,4 +220,3 @@ func (iss *ItemsServerService) ListItems(req *proto.ListItemReq, stream proto.It
 
 	return nil
 }
-
