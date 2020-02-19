@@ -1,0 +1,6 @@
+{
+  "database_name": "backend_db",
+  "username": "",
+  "password": "",
+  "url": "mongodb://127.0.0.1:27017"
+}
