@@ -7,4 +7,6 @@
  
  - protoc --proto_path=proto -I/--proto_path=proto --go_out=plugins=grpc:models user.proto order.proto item.proto
  
+ staff members as users will only be crated from the managers side, the same applies to the items  
+ 
  
